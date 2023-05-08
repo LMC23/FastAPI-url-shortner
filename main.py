@@ -1,6 +1,7 @@
 import uvicorn
 from db.supabase_db import client
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from schemas.url_schemas import CreateUrl, ShowCreateUrl
 from utils.generate_key import generate_keys
 
@@ -15,7 +16,6 @@ async def root():
 
 @app.post("/url")
 async def create_url(url: CreateUrl) -> ShowCreateUrl:
-
     keys = generate_keys()
     param = {"clicks": 0, "is_active": True, "key": keys[1], "secret_key": keys[0], "target_url": url.target_url}
 
@@ -25,7 +25,12 @@ async def create_url(url: CreateUrl) -> ShowCreateUrl:
 
 @app.get("/{url_key}")
 def test(url_key):
-    return {"mesaj": "ok"}
+    try:
+        data = client.table("url_table").select("*").eq("key", url_key).execute()
+        target_url = data.data[0]["target_url"]
+        return RedirectResponse(target_url)
+    except:
+        return HTTPException(status_code=404, detail="Item not found")
 
 
 @app.get("/admin/{secret_key}")
@@ -39,4 +44,4 @@ def test(secret_key):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="localhost", port=3006, reload=True)
+    uvicorn.run("main:app", host="localhost", port=3007, reload=True)
